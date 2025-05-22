@@ -352,8 +352,14 @@ let
       scarb = {
         version = "2.6.4";
         srcHash = "sha256-2p1W5f6URiHLQ9QBPgspA5JCcaEEwkD+lLqLs9KY50o=";
-        cargoHash = "sha256-6EAPziCS0CQd5d9MTexTeNqA7bIFyfmJNCRSSJvPk3Y=";
-        cargoLock = null;
+        cargoHash = "";
+        cargoLock = {
+          lockFile = ./lockfiles/v2.6.4/Cargo.lock;
+          # outputHashes = {
+          #   "cairo-lang-casm-1.1.1" =
+          #     "sha256-dC6BkwSMoIgh5+G/mNlnJIBrjenfCoLIQKJg6CSmtcE=";
+          # };
+        };
       };
     }
   ];
