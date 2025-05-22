@@ -1,75 +1,72 @@
 final: prev:
 let
-  inherit (final)
-    lib stdenv darwin fetchurl fetchFromGitHub rustPlatform;
+  inherit (final) lib stdenv darwin fetchurl fetchFromGitHub rustPlatform;
 
-  fetchCairo = { rev, hash }: fetchurl {
-    name = "cairo-archive-${rev}";
-    url = "https://github.com/starkware-libs/cairo/archive/v${rev}.zip";
-    sha256 = hash;
-    meta = {
-      version = rev;
+  fetchCairo = { rev, hash }:
+    fetchurl {
+      name = "cairo-archive-${rev}";
+      url = "https://github.com/starkware-libs/cairo/archive/v${rev}.zip";
+      sha256 = hash;
+      meta = { version = rev; };
+    };
+
+  mkCairo = { toolchainVersion, cairo, scarb }: {
+    cairo = rustPlatform.buildRustPackage rec {
+      pname = "cairo";
+      version = cairo.version;
+
+      doCheck = false;
+
+      src = fetchFromGitHub {
+        owner = "starkware-libs";
+        repo = pname;
+        rev = "v${cairo.version}";
+        hash = cairo.srcHash;
+      };
+
+      cargoHash = cairo.cargoHash;
+
+      meta = with lib; {
+        description =
+          "Cairo is the first Turing-complete language for creating provable programs for general computation.";
+        homepage = "https://github.com/starkware-libs/cairo";
+        license = licenses.asl20;
+        maintainers = [ ];
+      };
+    };
+
+    scarb = rustPlatform.buildRustPackage rec {
+      pname = "scarb";
+      version = scarb.version;
+
+      doCheck = false;
+
+      buildInputs = lib.optional stdenv.isDarwin
+        [ darwin.apple_sdk.frameworks.CoreFoundation ];
+
+      src = fetchFromGitHub {
+        owner = "software-mansion";
+        repo = pname;
+        rev = "v${scarb.version}";
+        hash = scarb.srcHash;
+      };
+
+      cargoHash = scarb.cargoHash;
+      cargoLock = scarb.cargoLock;
+
+      CAIRO_ARCHIVE = fetchCairo {
+        rev = cairo.version;
+        hash = cairo.archiveHash;
+      };
+
+      meta = with lib; {
+        description = "The Cairo package manager";
+        homepage = "http://docs.swmansion.com/scarb/";
+        license = licenses.asl20;
+        maintainers = [ ];
+      };
     };
   };
-
-  mkCairo = { toolchainVersion, cairo, scarb }:
-    {
-      cairo = rustPlatform.buildRustPackage rec {
-        pname = "cairo";
-        version = cairo.version;
-
-        doCheck = false;
-
-        src = fetchFromGitHub {
-          owner = "starkware-libs";
-          repo = pname;
-          rev = "v${cairo.version}";
-          hash = cairo.srcHash;
-        };
-
-        cargoHash = cairo.cargoHash;
-
-        meta = with lib; {
-          description = "Cairo is the first Turing-complete language for creating provable programs for general computation.";
-          homepage = "https://github.com/starkware-libs/cairo";
-          license = licenses.asl20;
-          maintainers = [ ];
-        };
-      };
-
-      scarb = rustPlatform.buildRustPackage rec {
-        pname = "scarb";
-        version = scarb.version;
-
-        doCheck = false;
-
-        buildInputs = lib.optional stdenv.isDarwin [
-          darwin.apple_sdk.frameworks.CoreFoundation
-        ];
-
-        src = fetchFromGitHub {
-          owner = "software-mansion";
-          repo = pname;
-          rev = "v${scarb.version}";
-          hash = scarb.srcHash;
-        };
-
-        cargoHash = scarb.cargoHash;
-        cargoLock = scarb.cargoLock;
-
-        CAIRO_ARCHIVE = fetchCairo {
-          rev = cairo.version;
-          hash = cairo.archiveHash;
-        };
-
-        meta = with lib; {
-          description = "The Cairo package manager";
-          homepage = "http://docs.swmansion.com/scarb/";
-          license = licenses.asl20;
-          maintainers = [ ];
-        };
-      };
-    };
 
   versions = [
     {
@@ -86,7 +83,8 @@ let
         cargoLock = {
           lockFile = ./lockfiles/v0.4.1/Cargo.lock;
           outputHashes = {
-            "cairo-lang-casm-1.1.1" = "sha256-dC6BkwSMoIgh5+G/mNlnJIBrjenfCoLIQKJg6CSmtcE=";
+            "cairo-lang-casm-1.1.1" =
+              "sha256-dC6BkwSMoIgh5+G/mNlnJIBrjenfCoLIQKJg6CSmtcE=";
           };
         };
       };
@@ -354,16 +352,17 @@ let
       scarb = {
         version = "2.6.4";
         srcHash = "sha256-2p1W5f6URiHLQ9QBPgspA5JCcaEEwkD+lLqLs9KY50o=";
-        cargoHash = "sha256-vcb6Fk1QloaeAHoTzeq4QbyQtEwD5IwwMP/LVYxSeTM=";
+        cargoHash = "sha256-6EAPziCS0CQd5d9MTexTeNqA7bIFyfmJNCRSSJvPk3Y=";
         cargoLock = null;
       };
     }
   ];
 
-  toolchains =
-    builtins.listToAttrs (builtins.map (v: { name = if v ? toolchainVersion then v.toolchainVersion else v.cairo.version; value = mkCairo v; }) versions);
-in
-{
+  toolchains = builtins.listToAttrs (builtins.map (v: {
+    name = if v ? toolchainVersion then v.toolchainVersion else v.cairo.version;
+    value = mkCairo v;
+  }) versions);
+in {
   cairo-bin = (toolchains // {
     stable = toolchains."2.6.3-1";
     beta = toolchains."2.6.3-1";
